@@ -6,13 +6,13 @@ module.exports = function(sequelize, DataTypes) {
       autoIncrement: true
     },
     title: {
-      type: DataTypes.TEXT
+      type: DataTypes.STRING
     },
     release_date: {
       type: DataTypes.DATEONLY
     },
     tagline: {
-      type: DataTypes.TEXT
+      type: DataTypes.STRING
     },
     revenue: {
       type: DataTypes.INTEGER
@@ -24,15 +24,16 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.INTEGER
     },
     original_language: {
-      type: DataTypes.TEXT
+      type: DataTypes.STRING
     },
     status: {
-      type: DataTypes.TEXT
+      type: DataTypes.STRING
     },
     genre_id: {
       type: DataTypes.INTEGER
     }
   }, {
-    underscored: true
+    underscored: true,
+    timestamps: false
   });
 }

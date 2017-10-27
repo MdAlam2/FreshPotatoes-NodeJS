@@ -5,23 +5,34 @@ const sqlite = require('sqlite'),
       express = require('express'),
       app = express();
 
-require('dotenv').config();
+// require('dotenv').config();
 
-const {
-  PORT=3000,
-  NODE_ENV='development',
-  DB_PATH='./db/database.db'
-} = process.env;
+// const {
+//   PORT=3000,
+//   NODE_ENV='development',
+//   DB_PATH='./db/database.db'
+// } = process.env;
+
+// const {
+//   DB_HOST='',
+//   DB_NAME='',
+//   DB_USER='',
+//   DB_PASSWORD='',
+//   DB_DIALECT='sqlite',
+//   DB_PATH='./db/database.db',
+//   PORT=3000,
+//   NODE_ENV='development'
+// } = process.env;
 
 const API_BASE_URL = 'http://credentials-api.generalassemb.ly/4576f55f-c427-4cfc-a11c-5bfe914ca6c1';
 const ERR_BAD_REQUEST = '"message" key missing';
 
-// const sequelize = new Sequelize(`${ process.env.DB_DIALECT }://${ process.env.DB_USER }:${ process.env.DB_PASSWORD }@${ process.env.DB_HOST }/${ process.env.DB_NAME }`);
 const sequelize = new Sequelize(process.env.DB_NAME, process.env.DB_USER, process.env.DB_PASSWORD, {
   host: process.env.DB_HOST,
-  dialect: process.env.DB_DIALECT,
-  storage: process.env.DB_PATH
+  dialect: 'sqlite',
+  storage: './db/database.db'
 });
+
 sequelize
   .authenticate()
   .then(() => {
@@ -31,10 +42,21 @@ sequelize
     console.error('Unable to connect to the database:', err);
   });
 
+const Film = sequelize.import('./models/film');
+const Genre = sequelize.import('./models/genre');
+
+// Film.hasOne(Genre, { foreignKey: 'genre_id' });
+
 // START SERVER
 Promise.resolve()
-  .then(() => app.listen(PORT, () => console.log(`App listening on port ${PORT}`)))
-  .catch((err) => { if (NODE_ENV === 'development') console.error(err.stack); });
+  .then(() => {
+    // app.listen(PORT, () => console.log(`App listening on port ${PORT}`))
+    app.listen(3000, () => console.log(`App listening on port 3000`))
+  })
+  .catch((err) => {
+    // if (NODE_ENV === 'development') console.error(err.stack);
+    console.error(err.stack)
+  });
 
 // ROUTES
 app.get('/films/:id/recommendations', getFilmRecommendations);
@@ -47,6 +69,7 @@ app.get('*', function(req, res){
 
 // ROUTE HANDLER
 function getFilmRecommendations(req, res) {
+  console.log('Running getFilmRecommendations');
   let limit = 10, offset = 0;
 
   if (!Number.isInteger(parseInt(req.params.id, 10))) {
@@ -75,20 +98,98 @@ function getFilmRecommendations(req, res) {
     offset = parseInt(req.query.offset, 10);
   }
 
-  request(`${ API_BASE_URL }?films=${ req.params.id }`, (err, response, body) => {
-    const reviews = JSON.parse(body)[0].reviews;
-    console.log('err', err);
-    console.log('response', response);
-    console.log('body', body);
+  Film.findById(req.params.id, {})
+    .then(film => {
+      console.log('film', film);
+      Genre.findById(film.genre_id, {})
+        .then(genre => {
+          console.log('genre', genre);
 
-    res.json({
-      recommendations: reviews,
-      meta: {
-        limit: limit,
-        offset: offset
-      }
+          let startDate = new Date(film.release_date);
+          startDate.setFullYear(startDate.getFullYear() - 15);
+
+          let endDate = new Date(film.release_date);
+          endDate.setFullYear(endDate.getFullYear() + 15);
+
+          console.log('original', film.release_date, 'start', startDate, 'end', endDate);
+
+          Film.all({
+            where: {
+              genre_id: film.genre_id,
+              release_date: {
+                $between: [startDate, endDate]
+              }
+            },
+            order: ['id']
+          })
+          .then(films => {
+            const film_ids = films.map(film => {
+              return film.id
+            });
+
+            const film_ids_str = film_ids.join(',');
+
+            console.log('film_ids_str', film_ids_str);
+
+            request(`${ API_BASE_URL }?films=${ film_ids_str }`, (err, response, body) => {
+              const reviewedFilms = JSON.parse(body);
+              console.log('err', err);
+              console.log('response', response);
+              console.log('body', body);
+
+              console.log('reviewedFilms.length', reviewedFilms.length);
+
+              // Must have 5 reviews at least
+              const reviewedFilmsOverFive = reviewedFilms.filter(reviewedFilm => {
+                return reviewedFilm.reviews.length >= 5;
+              });
+
+              console.log('reviewedFilmsOverFive', reviewedFilmsOverFive.length);
+
+              const reviewedFilmsWithAverage = reviewedFilmsOverFive.map(reviewedFilm => {
+                const totalRating = reviewedFilm.reviews.reduce((sum, val) => {
+                  return sum + val.rating;
+                }, 0);
+
+                const averageRating = totalRating / reviewedFilm.reviews.length;
+                reviewedFilm.average_rating = averageRating;
+
+                return reviewedFilm;
+              });
+
+              // Has to have more than average 4
+              const reviewedFilmsAboveAverage = reviewedFilmsWithAverage.filter(reviewedFilm => {
+                return reviewedFilm.average_rating > 4;
+              });
+
+              console.log('reviewedFilmsAboveAverage', reviewedFilmsAboveAverage.length);
+
+              
+              res.json({
+                original: JSON.parse(body),
+                // recommendations: reviews,
+                meta: {
+                  limit: limit,
+                  offset: offset
+                }
+              });
+            });
+          })
+          .catch(err => {
+            res.status(500).json(err);
+          });
+
+
+        })
+        .catch(err => {
+          res.status(500).json(err);
+        });
+    })
+    .catch(err => {
+      res.status(500).json(err);
     });
-  });
+
+
 }
 
 module.exports = app;
