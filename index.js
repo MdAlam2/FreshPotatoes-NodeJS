@@ -5,6 +5,7 @@ const sqlite = require('sqlite'),
       app = express();
 
 const { PORT=3000, NODE_ENV='development', DB_PATH='./db/database.db' } = process.env;
+const API_BASE_URL = 'http://credentials-api.generalassemb.ly/4576f55f-c427-4cfc-a11c-5bfe914ca6c1';
 
 // START SERVER
 Promise.resolve()
@@ -16,10 +17,12 @@ app.get('/films/:id/recommendations', getFilmRecommendations);
 
 // ROUTE HANDLER
 function getFilmRecommendations(req, res) {
-  const limit = (req.query.limit) ? req.query.limit : 10;
-  const offset = (req.query.offset) ? req.query.offset : 0;
+  const limit = (Number.isInteger(parseInt(req.query.limit, 10))) ?
+    parseInt(req.query.limit, 10) : 10;
+  const offset = (Number.isInteger(parseInt(req.query.offset))) ?
+    parseInt(req.query.offset, 10) : 0;
 
-  request(`http://credentials-api.generalassemb.ly/4576f55f-c427-4cfc-a11c-5bfe914ca6c1?films=${ req.params.id }`, (err, response, body) => {
+  request(`${ API_BASE_URL }?films=${ req.params.id }`, (err, response, body) => {
     const reviews = JSON.parse(body)[0].reviews;
     console.log('err', err);
     console.log('response', response);
