@@ -25,24 +25,30 @@ app.get('*', function(req, res){
 function getFilmRecommendations(req, res) {
   let limit = 10, offset = 0;
 
+  if (!Number.isInteger(parseInt(req.params.id, 10))) {
+    res.status(422).json({
+      message: '"message" key missing'
+    });
+  }
+
   if (req.query.limit) {
     if (!Number.isInteger(parseInt(req.query.limit, 10))) {
       res.status(422).json({
         message: '"message" key missing'
-      })
-    } else {
-      limit = parseInt(req.query.limit, 10);
+      });
     }
+
+    limit = parseInt(req.query.limit, 10);
   }
 
   if (req.query.offset) {
     if (!Number.isInteger(parseInt(req.query.offset, 10))) {
       res.status(422).json({
         message: '"message" key missing'
-      })
-    } else {
-      offset = parseInt(req.query.offset, 10);
+      });
     }
+
+    offset = parseInt(req.query.offset, 10);
   }
 
   request(`${ API_BASE_URL }?films=${ req.params.id }`, (err, response, body) => {
