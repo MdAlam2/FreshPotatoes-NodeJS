@@ -162,17 +162,56 @@ function getFilmRecommendations(req, res) {
                 return reviewedFilm.average_rating > 4;
               });
 
-              console.log('reviewedFilmsAboveAverage', reviewedFilmsAboveAverage.length);
+              console.log('reviewedFilmsAboveAverage length', reviewedFilmsAboveAverage.length);
+              console.log('reviewedFilmsAboveAverage', reviewedFilmsAboveAverage);
 
-              
-              res.json({
-                original: JSON.parse(body),
-                // recommendations: reviews,
-                meta: {
-                  limit: limit,
-                  offset: offset
-                }
+              const reviewedFilmsAboveAverageIds = reviewedFilmsAboveAverage.map(film => {
+                console.log('film', film);
+                return film.film_id;
               });
+              // reviewedFilmsAboveAverageIdsStr = reviewedFilmsAboveAverageIds.join(',');
+
+              console.log('reviewedFilmsAboveAverageIds', reviewedFilmsAboveAverageIds);
+
+              Film.all({
+                attributes: ['id', 'title', 'release_date'],
+                where: { 'id': { in: reviewedFilmsAboveAverageIds }},
+                order: ['id']
+              })
+              .then(recommendedFilms => {
+                const finalRecommendedFilms = recommendedFilms.map(film => {
+                  const matchedFilm = reviewedFilmsAboveAverage.find((element) => {
+                    // console.log('element', element);
+                    // console.log('film', film);
+                    return element.film_id = film.id;
+                  })
+
+                  console.log('matchedFilm', matchedFilm);
+
+                  return {
+                    id: matchedFilm.film_id,
+                    title: film.title,
+                    releaseDate: film.release_date,
+                    genre: genre.name,
+                    averageRating: matchedFilm.average_rating,
+                    reviews: matchedFilm.reviews.length
+                  }
+                })
+
+                res.json({
+                  // original: JSON.parse(body),
+                  recommendations: finalRecommendedFilms,
+                  meta: {
+                    limit: limit,
+                    offset: offset
+                  }
+                });
+              })
+              .catch(err => {
+                res.status(500).json(err);
+              });
+
+
             });
           })
           .catch(err => {
