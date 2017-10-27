@@ -16,7 +16,23 @@ app.get('/films/:id/recommendations', getFilmRecommendations);
 
 // ROUTE HANDLER
 function getFilmRecommendations(req, res) {
-  res.status(500).send('Not Implemented');
+  const limit = (req.query.limit) ? req.query.limit : 10;
+  const offset = (req.query.offset) ? req.query.offset : 0;
+
+  request(`http://credentials-api.generalassemb.ly/4576f55f-c427-4cfc-a11c-5bfe914ca6c1?films=${ req.params.id }`, (err, response, body) => {
+    const reviews = JSON.parse(body)[0].reviews;
+    console.log('err', err);
+    console.log('response', response);
+    console.log('body', body);
+
+    res.json({
+      recommendations: reviews,
+      meta: {
+        limit: limit,
+        offset: offset
+      }
+    });
+  });
 }
 
 module.exports = app;
