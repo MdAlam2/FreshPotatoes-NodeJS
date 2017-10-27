@@ -36,7 +36,7 @@ const sequelize = new Sequelize(process.env.DB_NAME, process.env.DB_USER, proces
 sequelize
   .authenticate()
   .then(() => {
-    console.log('Connection established successfully');
+    // console.log('Connection established successfully');
   })
   .catch(err => {
     console.error('Unable to connect to the database:', err);
@@ -69,7 +69,7 @@ app.get('*', function(req, res){
 
 // ROUTE HANDLER
 function getFilmRecommendations(req, res) {
-  console.log('Running getFilmRecommendations');
+  // console.log('Running getFilmRecommendations');
   let limit = 10, offset = 0;
 
   if (!Number.isInteger(parseInt(req.params.id, 10))) {
@@ -100,10 +100,10 @@ function getFilmRecommendations(req, res) {
 
   Film.findById(req.params.id, {})
     .then(film => {
-      console.log('film', film);
+      // console.log('film', film);
       Genre.findById(film.genre_id, {})
         .then(genre => {
-          console.log('genre', genre);
+          // console.log('genre', genre);
 
           let startDate = new Date(film.release_date);
           startDate.setFullYear(startDate.getFullYear() - 15);
@@ -111,7 +111,7 @@ function getFilmRecommendations(req, res) {
           let endDate = new Date(film.release_date);
           endDate.setFullYear(endDate.getFullYear() + 15);
 
-          console.log('original', film.release_date, 'start', startDate, 'end', endDate);
+          // console.log('original', film.release_date, 'start', startDate, 'end', endDate);
 
           Film.all({
             where: {
@@ -129,22 +129,22 @@ function getFilmRecommendations(req, res) {
 
             const film_ids_str = film_ids.join(',');
 
-            console.log('film_ids_str', film_ids_str);
+            // console.log('film_ids_str', film_ids_str);
 
             request(`${ API_BASE_URL }?films=${ film_ids_str }`, (err, response, body) => {
               const reviewedFilms = JSON.parse(body);
-              console.log('err', err);
-              console.log('response', response);
-              console.log('body', body);
-
-              console.log('reviewedFilms.length', reviewedFilms.length);
+              // console.log('err', err);
+              // console.log('response', response);
+              // console.log('body', body);
+              //
+              // console.log('reviewedFilms.length', reviewedFilms.length);
 
               // Must have 5 reviews at least
               const reviewedFilmsOverFive = reviewedFilms.filter(reviewedFilm => {
                 return reviewedFilm.reviews.length >= 5;
               });
 
-              console.log('reviewedFilmsOverFive', reviewedFilmsOverFive.length);
+              // console.log('reviewedFilmsOverFive', reviewedFilmsOverFive.length);
 
               const reviewedFilmsWithAverage = reviewedFilmsOverFive.map(reviewedFilm => {
                 const totalRating = reviewedFilm.reviews.reduce((sum, val) => {
@@ -162,16 +162,16 @@ function getFilmRecommendations(req, res) {
                 return reviewedFilm.average_rating > 4;
               });
 
-              console.log('reviewedFilmsAboveAverage length', reviewedFilmsAboveAverage.length);
-              console.log('reviewedFilmsAboveAverage', reviewedFilmsAboveAverage);
+              // console.log('reviewedFilmsAboveAverage length', reviewedFilmsAboveAverage.length);
+              // console.log('reviewedFilmsAboveAverage', reviewedFilmsAboveAverage);
 
               const reviewedFilmsAboveAverageIds = reviewedFilmsAboveAverage.map(film => {
-                console.log('film', film);
+                // console.log('film', film);
                 return film.film_id;
               });
               // reviewedFilmsAboveAverageIdsStr = reviewedFilmsAboveAverageIds.join(',');
 
-              console.log('reviewedFilmsAboveAverageIds', reviewedFilmsAboveAverageIds);
+              // console.log('reviewedFilmsAboveAverageIds', reviewedFilmsAboveAverageIds);
 
               Film.all({
                 attributes: ['id', 'title', 'release_date'],
@@ -180,26 +180,25 @@ function getFilmRecommendations(req, res) {
               })
               .then(recommendedFilms => {
                 const finalRecommendedFilms = recommendedFilms.map(film => {
-                  const matchedFilm = reviewedFilmsAboveAverage.find((element) => {
+                  const matchedFilm = reviewedFilmsAboveAverage.filter(element => {
                     // console.log('element', element);
                     // console.log('film', film);
                     return element.film_id = film.id;
                   })
 
-                  console.log('matchedFilm', matchedFilm);
+                  // console.log('matchedFilm', matchedFilm[0]);
 
                   return {
-                    id: matchedFilm.film_id,
+                    id: matchedFilm[0].film_id,
                     title: film.title,
                     releaseDate: film.release_date,
                     genre: genre.name,
-                    averageRating: matchedFilm.average_rating,
-                    reviews: matchedFilm.reviews.length
+                    averageRating: matchedFilm[0].average_rating,
+                    reviews: matchedFilm[0].reviews.length
                   }
                 })
 
                 res.json({
-                  // original: JSON.parse(body),
                   recommendations: finalRecommendedFilms,
                   meta: {
                     limit: limit,
