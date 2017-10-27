@@ -15,12 +15,35 @@ Promise.resolve()
 // ROUTES
 app.get('/films/:id/recommendations', getFilmRecommendations);
 
+app.get('*', function(req, res){
+  res.status(404).json({
+    message: '"message" key missing'
+  })
+});
+
 // ROUTE HANDLER
 function getFilmRecommendations(req, res) {
-  const limit = (Number.isInteger(parseInt(req.query.limit, 10))) ?
-    parseInt(req.query.limit, 10) : 10;
-  const offset = (Number.isInteger(parseInt(req.query.offset))) ?
-    parseInt(req.query.offset, 10) : 0;
+  let limit = 10, offset = 0;
+
+  if (req.query.limit) {
+    if (!Number.isInteger(parseInt(req.query.limit, 10))) {
+      res.status(422).json({
+        message: '"message" key missing'
+      })
+    } else {
+      limit = parseInt(req.query.limit, 10);
+    }
+  }
+
+  if (req.query.offset) {
+    if (!Number.isInteger(parseInt(req.query.offset, 10))) {
+      res.status(422).json({
+        message: '"message" key missing'
+      })
+    } else {
+      offset = parseInt(req.query.offset, 10);
+    }
+  }
 
   request(`${ API_BASE_URL }?films=${ req.params.id }`, (err, response, body) => {
     const reviews = JSON.parse(body)[0].reviews;
